@@ -17,7 +17,9 @@ self-contained dark CSS since this is a standalone page, not an embedded widget.
 
 from __future__ import annotations
 
+import html as _html
 import json
+import re
 
 from flask import Flask, render_template_string
 
@@ -82,6 +84,21 @@ def _align_for_chart(series_map: dict, metrics: list[str]) -> dict:
 
 def _fmt(value, suffix="", places=1):
     return f"{value:.{places}f}{suffix}" if value is not None else "—"
+
+
+def _render_narrative(text: str | None) -> str:
+    """Render the Markdown-ish AI narrative as safe HTML.
+
+    The model writes **bold** labels and blank-line paragraphs. We escape the
+    text first (so it can't inject HTML), then turn **bold** into <strong> and
+    blank lines into <p> — so the dashboard shows formatting, not raw asterisks.
+    """
+    if not text:
+        return ""
+    esc = _html.escape(text)
+    esc = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", esc)
+    paras = [p.strip().replace("\n", " ") for p in esc.split("\n\n") if p.strip()]
+    return "".join(f'<p style="margin:0 0 10px;">{p}</p>' for p in paras)
 
 
 @app.route("/")
@@ -164,6 +181,7 @@ def dashboard():
         "stats": stats,
         "term": market,
         "narrative": (narrative_row["text"] if narrative_row else None),
+        "narrative_html": _render_narrative(narrative_row["text"] if narrative_row else None),
         "narrative_source": (narrative_row["source"].upper() if narrative_row else None),
         "backtest": backtest,
         "drivers": driver_cards,
@@ -297,7 +315,7 @@ TEMPLATE = r"""
     <h2>Analyst note
       {% if narrative_source %}<span class="pill">{{ narrative_source }}</span>{% endif %}
     </h2>
-    <div class="card narrative">{{ narrative }}</div>
+    <div class="card narrative">{{ narrative_html | safe }}</div>
   </section>
   {% endif %}
 

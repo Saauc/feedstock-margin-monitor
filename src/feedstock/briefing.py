@@ -132,7 +132,8 @@ def build_briefing(conn=None) -> str:
         if narrative_row:
             src = narrative_row["source"].upper()
             lines.append(f" ANALYST NOTE  ({src})")
-            lines.append(_wrap(narrative_row["text"]))
+            # Strip Markdown bold markers — they're noise in plain text.
+            lines.append(_wrap(narrative_row["text"].replace("**", "")))
         else:
             lines.append(" ANALYST NOTE")
             lines.append("   (none generated yet — run narrative.py)")
