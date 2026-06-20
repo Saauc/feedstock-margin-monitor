@@ -4,6 +4,9 @@
   "trailing_window": 60,
   "logistic_k": 1.0,
   "percentile_window": 504,
+  "min_component_coverage": 0.6,
+  "index_smoothing_span": 10,
+  "_signal_doc": "min_component_coverage: skip dates where <60% of the basket weight is present (avoids a 1-of-7 'index' in early history). index_smoothing_span: EWMA span (~2 weeks) that damps daily whipsaw in the composite signal into a readable cycle.",
 
   "alert_threshold": 70,
   "_alert_doc": "Index >= alert_threshold raises an alert (briefing flag + optional one-per-day email). 70 ~ +1 sigma of broad feedstock cost pressure.",

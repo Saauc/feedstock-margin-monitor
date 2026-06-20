@@ -126,15 +126,27 @@ def compute_pressure_series(series_map: SeriesMap, config: dict) -> list[dict]:
     """
     window = int(config.get("trailing_window", 20))
     k = float(config.get("logistic_k", 1.0))
+    # Coverage gate: don't emit an index when too little of the basket is
+    # present. Early history where only one source exists (e.g. propane before
+    # the other feeds start) is a 1-of-7 "index" — noise, not signal. Default 0
+    # = emit always (backwards compatible); config.json sets a real threshold.
+    min_coverage = float(config.get("min_component_coverage", 0.0))
+    # EWMA smoothing of the composite signal. span=1 (default) = no smoothing;
+    # config.json sets a span to damp daily whipsaw into a readable cycle.
+    span = max(1, int(config.get("index_smoothing_span", 1)))
     components: dict = config["components"]
+    total_weight = sum(abs(float(c.get("weight", 0.0)))
+                       for c in components.values()) or 1.0
 
     dates, aligned = align_by_date(series_map)
-    results: list[dict] = []
 
+    # Pass 1: raw composite z per date (gated on coverage).
+    raw: list[dict] = []
     for i, date in enumerate(dates):
         directional_z: dict[str, float] = {}
         weights: dict[str, float] = {}
         max_baseline_len = 0
+        present_weight = 0.0
 
         for metric, cfg in components.items():
             column = aligned.get(metric)
@@ -148,15 +160,34 @@ def compute_pressure_series(series_map: SeriesMap, config: dict) -> list[dict]:
             z = zscore(current, baseline)
             direction = float(cfg.get("direction", 1))
             directional_z[metric] = z * direction
-            weights[metric] = float(cfg.get("weight", 0.0))
+            w = float(cfg.get("weight", 0.0))
+            weights[metric] = w
+            present_weight += abs(w)
 
-        index, composite = _combine(directional_z, weights, k)
-        results.append({
+        if present_weight / total_weight < min_coverage:
+            continue
+        _, composite = _combine(directional_z, weights, k)
+        raw.append({
             "date": date,
-            "index": round(index, 2),
-            "composite_z": round(composite, 4),
-            "components": {m: round(v, 4) for m, v in directional_z.items()},
+            "composite_z": composite,
+            "components": directional_z,
             "sufficient": max_baseline_len >= MIN_BASELINE_POINTS,
+        })
+
+    # Pass 2: EWMA-smooth the composite signal, then squash to 0..100.
+    alpha = 2.0 / (span + 1.0)
+    smoothed: float | None = None
+    results: list[dict] = []
+    for r in raw:
+        smoothed = (r["composite_z"] if smoothed is None
+                    else alpha * r["composite_z"] + (1 - alpha) * smoothed)
+        index = clamp(100.0 * logistic(k * smoothed))
+        results.append({
+            "date": r["date"],
+            "index": round(index, 2),
+            "composite_z": round(smoothed, 4),
+            "components": {m: round(v, 4) for m, v in r["components"].items()},
+            "sufficient": r["sufficient"],
         })
 
     return results

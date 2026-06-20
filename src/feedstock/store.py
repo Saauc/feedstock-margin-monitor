@@ -202,6 +202,15 @@ def count_rows(conn: sqlite3.Connection) -> int:
     return conn.execute("SELECT COUNT(*) FROM observations").fetchone()[0]
 
 
+def delete_metric(conn: sqlite3.Connection, metric: str) -> int:
+    """Delete all rows for a metric. Used to cleanly regenerate derived/computed
+    series (index, crack spreads) on backfill, since record_observation is
+    first-write-wins and won't overwrite stale recomputations."""
+    cur = conn.execute("DELETE FROM observations WHERE metric = ?", (metric,))
+    conn.commit()
+    return cur.rowcount
+
+
 # --- narratives -----------------------------------------------------------
 
 def save_narrative(

@@ -15,16 +15,32 @@ inserts genuinely new points. Without keys it no-ops gracefully.
 from __future__ import annotations
 
 from feedstock import analysis, ingest, official_data, spreads, transform
-from feedstock.store import get_connection, init_db, record_many, record_observation
+from feedstock.store import (
+    delete_metric,
+    get_connection,
+    init_db,
+    record_many,
+    record_observation,
+)
+
+_REBUILT_METRICS = [
+    "margin_pressure_index",
+    "gasoline_crack_usd_bbl",
+    "distillate_crack_usd_bbl",
+    "crack_321_usd_bbl",
+]
 
 
 def _rebuild_index_and_cracks(conn, config: dict) -> int:
     """Recompute the margin-pressure index AND crack spreads over ALL history.
 
-    Once the raw history is loaded, this walks the full date axis and persists a
-    margin_pressure_index for every date (so percentile/vol/backtest have a real
-    series), plus the crack spreads where products+crude are available.
+    Clears the prior computed/derived series first (record_observation is
+    first-write-wins, so stale rows would otherwise survive a re-run), then
+    walks the full date axis and persists a fresh series.
     """
+    for metric in _REBUILT_METRICS:
+        delete_metric(conn, metric)
+
     components = config["components"]
     series_map = analysis.build_series_map(conn, list(components.keys()))
     written = 0

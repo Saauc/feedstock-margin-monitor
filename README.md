@@ -7,8 +7,23 @@ them statistically (historical percentile, volatility regime, forward-curve
 shape), interprets them with an LLM, and alerts when margin pressure crosses a
 threshold.
 
-> _TODO (you): one-paragraph pitch in your own words — what this is and why it
-> exists._
+**Why I built this.** I'm teaching myself how energy and commodity markets actually
+work, and I learn fastest by building real systems rather than just reading about
+them. This is my hands-on way into petrochemical margin analysis: I wanted to
+understand why a coatings manufacturer's input costs move, frame it the way a
+trading desk would (margins are *spreads*, not price levels), and at the same time
+practice the full engineering arc — data ingestion, a typed and tested codebase,
+statistical analysis, an LLM layer, and hands-off daily automation. It's a
+**learning project**, built out of genuine interest in commodities and software —
+not a production trading tool or investment advice. The analytics are deliberately
+honest about their limits (see [Limitations](#limitations-read-this)); getting
+comfortable saying clearly what a model *can't* do was part of the point.
+
+## Dashboard
+
+![Margin-pressure overview — index, percentile, vol regime, crack spreads, curve, AI note, and the FRED-PPI validation](docs/dashboard-overview.png)
+
+![Trend charts — index, crack spreads, crude, products, gas, and FX over the accumulated history](docs/dashboard-trends.png)
 
 ---
 
@@ -107,7 +122,10 @@ feedstock.db          accumulating SQLite history (committed back by CI)
 | `app.py` | Dark-theme Flask dashboard |
 | `run_daily.py` | Orchestrates the full pipeline (CI entry point) |
 
-> _TODO (you): a data-flow diagram if you want one._
+Data flow: `ingest` + `official_data` → SQLite (`store`) → `analysis` + `quant` +
+`spreads` → `narrative` / `alerting` / `backtest` → `briefing` / `app`.
+`run_daily` chains the steps; the GitHub Actions cron runs it daily and commits
+the updated database back.
 
 ---
 
@@ -121,7 +139,10 @@ feedstock.db          accumulating SQLite history (committed back by CI)
 - The daily job commits the updated `feedstock.db` back to the repo (history) and
   uploads it as an artifact.
 
-> _TODO (you): note your repo URL / any environment specifics._
+Repo: **https://github.com/Saauc/feedstock-margin-monitor**. It runs entirely on
+free tiers — the free data sources above plus the free GitHub Actions runner — so
+operating it costs nothing beyond a few cents a day of Anthropic API usage for the
+narrative (and that's optional; it falls back to a templated summary without a key).
 
 ---
 
@@ -162,11 +183,13 @@ about what it can and cannot tell you:
   crude differentials, freight lanes, or local feedstock markets.
 - **Not investment advice.** Nothing here should drive a trade or procurement decision
   on its own.
-
-> _TODO (you): add any caveats specific to how you intend to use it._
+- **It's a learning project, full stop.** I built it to learn commodity-market
+  reasoning and end-to-end data engineering — not to trade on. Every number here is
+  a learning artifact, and the limitations above are features of being honest about
+  that, not disclaimers bolted on at the end.
 
 ---
 
 ## License
 
-> _TODO (you)._
+MIT — see [`LICENSE`](LICENSE). Use it, fork it, learn from it.
