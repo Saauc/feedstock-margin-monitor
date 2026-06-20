@@ -1,0 +1,28 @@
+# Secrets — never commit. Use .env.example as the template.
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Tooling caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# OS / editor / local agent settings
+.DS_Store
+.idea/
+.vscode/
+.claude/
+
+# NOTE: feedstock.db is intentionally NOT ignored.
+# The SQLite database is the accumulating history that the daily GitHub Actions
+# job commits back to the repo (with `git add -f`). Keeping it tracked is how
+# history persists across runs. If you want a clean slate, delete it and let
+# the next run rebuild it.

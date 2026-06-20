@@ -1,0 +1,78 @@
+{
+  "_README": "Coatings feedstock-margin model config. The margin-pressure index is a weighted basket of the PETROLEUM- AND ENERGY-LINKED portion of a coatings bill of materials (BOM), each input mapped to the best available tradeable/official proxy. Components with no data on a given run (e.g. EIA propane before an EIA_API_KEY is set) are simply dropped and the remaining weights renormalize. See spreads.py COATINGS_BOM for the full value-chain documentation and the explicit TiO2 data gap.",
+
+  "trailing_window": 60,
+  "logistic_k": 1.0,
+  "percentile_window": 504,
+
+  "alert_threshold": 70,
+  "_alert_doc": "Index >= alert_threshold raises an alert (briefing flag + optional one-per-day email). 70 ~ +1 sigma of broad feedstock cost pressure.",
+
+  "components": {
+    "propane_mont_belvieu_usd_gal": {
+      "weight": 0.28, "direction": 1, "label": "Propane (Mont Belvieu)",
+      "proxy_for": "Propylene / acrylic & epoxy resin feedstock (PDH route)",
+      "source": "EIA", "tier": "primary feedstock"
+    },
+    "rbob_gasoline_usd_gal": {
+      "weight": 0.18, "direction": 1, "label": "RBOB gasoline",
+      "proxy_for": "Naphtha-range light ends / solvents",
+      "source": "Yahoo", "tier": "feedstock proxy"
+    },
+    "henry_hub_natgas_usd_mmbtu": {
+      "weight": 0.20, "direction": 1, "label": "Henry Hub natural gas",
+      "proxy_for": "Process energy (drying, reactors) + petrochemical fuel/feed",
+      "source": "Yahoo", "tier": "energy"
+    },
+    "ulsd_diesel_usd_gal": {
+      "weight": 0.12, "direction": 1, "label": "ULSD diesel",
+      "proxy_for": "Inbound/outbound freight & logistics cost",
+      "source": "Yahoo", "tier": "logistics"
+    },
+    "brent_crude_usd_bbl": {
+      "weight": 0.12, "direction": 1, "label": "Brent crude",
+      "proxy_for": "Base petroleum linkage across the chain",
+      "source": "Yahoo", "tier": "anchor"
+    },
+    "eur_usd": {
+      "weight": 0.06, "direction": -1, "label": "EUR/USD",
+      "proxy_for": "FX cost for EU producers buying USD-priced feedstock",
+      "source": "frankfurter", "tier": "fx"
+    },
+    "usd_cny": {
+      "weight": 0.04, "direction": 1, "label": "USD/CNY",
+      "proxy_for": "FX for Asian feedstock/intermediate imports",
+      "source": "frankfurter", "tier": "fx"
+    }
+  },
+
+  "crack_spreads": {
+    "_doc": "Refining margins computed from product vs crude futures (1 bbl = 42 gal). These are context/validation signals, not index inputs — they show where margin sits in the refining chain that feeds petrochemicals.",
+    "crude_metric": "wti_crude_usd_bbl"
+  },
+
+  "backtest": {
+    "_doc": "Validates the margin-pressure index against an independent ground truth (FRED coatings PPI). Needs the FRED series backfilled (python -m feedstock.backfill) and enough index history. target_metric must match a FRED series name in sources.fred.series.",
+    "target_metric": "coatings_ppi",
+    "max_lag_months": 3,
+    "min_paired": 6
+  },
+
+  "sources": {
+    "eia": {
+      "_doc": "EIA v2 /seriesid route. Needs free EIA_API_KEY (api.eia.gov). Series IDs are configurable so you can fix any facet without code changes.",
+      "series": {
+        "propane_mont_belvieu_usd_gal": "PET.EER_EPLLPA_PF4_Y44MB_DPG.D",
+        "refinery_utilization_pct": "PET.WPULEUS3.W"
+      }
+    },
+    "fred": {
+      "_doc": "FRED observations API. Needs free FRED_API_KEY. coatings_ppi is the real backtest validation target (PPI: Paint & Coating Manufacturing).",
+      "series": {
+        "coatings_ppi": "PCU325510325510",
+        "industrial_chemicals_ppi": "WPU061",
+        "propane_mont_belvieu_usd_gal_fred": "DPROPANEMBTX"
+      }
+    }
+  }
+}

@@ -1,0 +1,98 @@
+name: Daily feedstock margin run
+
+# ─── WHEN does this run? ──────────────────────────────────────────────────
+on:
+  schedule:
+    # Cron is five space-separated fields: minute hour day-of-month month day-of-week.
+    # "0 6 * * *"  =  minute 0, hour 6, every day, every month, every weekday
+    #             =  06:00 UTC daily.
+    # GitHub Actions cron is ALWAYS in UTC (no local timezone), and is best-effort:
+    # under load the run can be delayed by several minutes — never schedule
+    # anything that needs exact timing here. 06:00 UTC lands after the prior US
+    # market close and before the EU open, so the previous day's settled crude /
+    # FX prints are available.
+    - cron: "0 6 * * *"
+  # Lets you trigger a run by hand from the repo's Actions tab — invaluable for
+  # testing without waiting for 06:00 UTC.
+  workflow_dispatch: {}
+
+# Prevent two runs (e.g. a manual trigger overlapping the cron) from racing on
+# the same DB / git push. Queue them instead of running concurrently.
+concurrency:
+  group: daily-feedstock-run
+  cancel-in-progress: false
+
+# The default GITHUB_TOKEN is limited by default. We need write access so the
+# workflow can commit the updated database back to the repo.
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      # Checks out the repo INCLUDING the existing feedstock.db, so each run
+      # builds on the accumulated history rather than starting empty. This is
+      # half of how persistence works (see the commit step for the other half).
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"            # cache installed wheels keyed on requirements.txt
+
+      - name: Install package
+        run: pip install -e .
+
+      # ─── SECRETS injection ──────────────────────────────────────────────
+      # Secrets live in repo Settings → Secrets and variables → Actions, never
+      # in the repo. GitHub injects them here as environment variables for THIS
+      # step only; they're masked in logs. Our code reads them straight from the
+      # environment (narrative._load_dotenv never overwrites an already-set var),
+      # so no .env file is needed in CI. Unset secrets arrive as empty strings,
+      # which the code treats as "not configured" and degrades gracefully —
+      # so the workflow runs fine even before you've added any secrets.
+      - name: Run daily pipeline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ALERT_EMAIL_FROM: ${{ secrets.ALERT_EMAIL_FROM }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+        run: python -m feedstock.run_daily
+
+      # ─── PERSISTENCE: commit the updated DB back to the repo ─────────────
+      # Each runner is ephemeral and wiped after the job, so anything not
+      # committed (or uploaded) is lost. Committing feedstock.db back means the
+      # next run checks out the accumulated history. `if: always()` ensures we
+      # persist whatever we gathered even if a pipeline step failed.
+      # `git add -f` defeats any .gitignore rule on *.db. The diff check avoids
+      # an empty commit on days when nothing changed.
+      - name: Commit updated database
+        if: always()
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f feedstock.db
+          if git diff --staged --quiet; then
+            echo "No database changes to commit."
+          else
+            git commit -m "data: daily feedstock run $(date -u +'%Y-%m-%d')"
+            git push
+          fi
+
+      # Belt-and-suspenders: also publish the DB as a downloadable artifact
+      # (90-day retention by default). Useful as a backup and for grabbing the
+      # data without cloning. The commit above is the source of truth for
+      # long-term history; this is the convenience copy.
+      - name: Upload database artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: feedstock-db
+          path: feedstock.db
+          if-no-files-found: warn

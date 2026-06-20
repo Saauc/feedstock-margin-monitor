@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "feedstock-margin-monitor"
+version = "2.0.0"
+description = "Petrochemical feedstock margin-pressure monitor for coatings/paint manufacturers"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "requests>=2.31",
+  "anthropic>=0.40",
+  "python-dotenv>=1.0",
+  "Flask>=3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.6",
+  "mypy>=1.8",
+  "types-requests",
+]
+
+[project.scripts]
+feedstock-run = "feedstock.run_daily:main"
+feedstock-dashboard = "feedstock.app:main"
+feedstock-backfill = "feedstock.backfill:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# E501 (line length): we favor explanatory comments; the formatter handles code.
+# B905 (zip strict=): noise in fixed-length numeric zips computed by construction.
+ignore = ["E501", "B905"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src"]
+ignore_missing_imports = true
+check_untyped_defs = false
+warn_redundant_casts = true
