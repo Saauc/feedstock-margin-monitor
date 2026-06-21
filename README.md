@@ -1,5 +1,9 @@
 # Petrochemical Feedstock Margin Monitor
 
+[![CI](https://github.com/Saauc/feedstock-margin-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/Saauc/feedstock-margin-monitor/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.11-blue.svg)
+
 An autonomous, scheduled analytics pipeline that tracks the petrochemical input
 costs driving coatings/paint manufacturing margins, frames them the way a
 commodity desk would (margins as **crack spreads**, not price levels), contextualizes
