@@ -9,5 +9,10 @@ services:
     runtime: python
     plan: free
     buildCommand: "pip install -e . gunicorn"
-    startCommand: "gunicorn feedstock.app:app --bind 0.0.0.0:$PORT"
+    # --timeout 120: the first request after a cold start/deploy computes and
+    # caches the full page (a few seconds locally, more on a throttled free
+    # CPU) — give it headroom past gunicorn's 30s default so that request
+    # doesn't get killed mid-render. Every request after is served from cache.
+    startCommand: "gunicorn feedstock.app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 1"
+    healthCheckPath: /healthz
     autoDeploy: true

@@ -25,6 +25,12 @@ from feedstock import analysis, store, transform
 
 app = Flask(__name__)
 
+
+@app.route("/healthz")
+def healthz():
+    """Cheap liveness check — no DB/compute — for Render's health probe."""
+    return "ok"
+
 METRIC_COLORS = {
     "brent_crude_usd_bbl": "#f0997b",
     "wti_crude_usd_bbl": "#ef9f27",
@@ -51,8 +57,25 @@ def _history(conn, metrics):
                 for r in store.fetch_metric_history(conn, m)] for m in metrics}
 
 
+# The rendered page is identical for every visitor and every request (no
+# per-user state, no query params) — it only needs to change once a day, when
+# the cron pushes fresh data and Render redeploys the process. Rebuilding the
+# full history + JSON payload on every request (~4s locally, likely far more
+# on a free-tier CPU) risks exceeding gunicorn's worker timeout under cold
+# start. Compute once, lazily, on first request; serve the cached HTML after.
+_page_cache: str | None = None
+
+
 @app.route("/")
 def dashboard():
+    global _page_cache
+    if _page_cache is not None:
+        return _page_cache
+    _page_cache = _render_dashboard()
+    return _page_cache
+
+
+def _render_dashboard() -> str:
     config = analysis.load_config()
     components = config["components"]
     metrics = list(components.keys())
