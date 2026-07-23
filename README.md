@@ -4,6 +4,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.11-blue.svg)
 
+**🔗 [Live interactive dashboard](https://feedstock-margin-monitor.onrender.com)** — scrub 5 years of history, reweight the coatings input basket live, and it updates automatically every day (no local setup needed). *First open of the day may take ~30–50s to wake the free-tier host; every visit after loads instantly.*
+
 An autonomous, scheduled analytics pipeline that tracks the petrochemical input
 costs driving coatings/paint manufacturing margins, frames them the way a
 commodity desk would (margins as **crack spreads**, not price levels), contextualizes
