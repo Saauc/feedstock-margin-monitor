@@ -1,0 +1,13 @@
+# Render blueprint — one-click deploy of the live dashboard.
+# In Render: New → Blueprint → connect this repo. Render reads this file and
+# provisions the web service automatically. No secrets required: the dashboard
+# is read-only over the committed feedstock.db and recomputes everything
+# client-side, so it needs no API keys to serve.
+services:
+  - type: web
+    name: feedstock-margin-monitor
+    runtime: python
+    plan: free
+    buildCommand: "pip install -e . gunicorn"
+    startCommand: "gunicorn feedstock.app:app --bind 0.0.0.0:$PORT"
+    autoDeploy: true

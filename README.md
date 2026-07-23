@@ -123,7 +123,7 @@ feedstock.db          accumulating SQLite history (committed back by CI)
 | `narrative.py` | Claude call citing spreads/percentile/curve + templated fallback |
 | `alerting.py` | Threshold eval, briefing flag, optional deduped email |
 | `briefing.py` | Plain-text daily briefing |
-| `app.py` | Dark-theme Flask dashboard |
+| `app.py` | Interactive dark dashboard (date scrubber, live basket reweighting) |
 | `run_daily.py` | Orchestrates the full pipeline (CI entry point) |
 
 Data flow: `ingest` + `official_data` → SQLite (`store`) → `analysis` + `quant` +
@@ -133,7 +133,21 @@ the updated database back.
 
 ---
 
-## Deployment (GitHub Actions)
+## Deploy the dashboard (Render)
+
+The dashboard is a one-click deploy — no secrets needed (it's read-only over the
+committed `feedstock.db` and recomputes everything client-side).
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Saauc/feedstock-margin-monitor)
+
+Or manually: Render → **New → Blueprint** → connect this repo. It reads
+[`render.yaml`](render.yaml) and serves `gunicorn feedstock.app:app`. The page is
+fully interactive without a backend round-trip — scrub the date, reweight the
+coatings basket, and the margin-pressure index recomputes live in the browser.
+
+---
+
+## Data automation (GitHub Actions)
 
 - Push to GitHub; `daily.yml` runs at **06:00 UTC** (and on-demand via the Actions
   tab). `ci.yml` runs lint + type-check + tests on every push/PR.
